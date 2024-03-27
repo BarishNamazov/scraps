@@ -1,3 +1,5 @@
+# Warning: ongoing project -- do not use unless you are interested in the code.
+
 # How to use
 
 1. Install dependencies
