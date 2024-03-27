@@ -1,6 +1,3 @@
-// You can't write custom wrapper with autocomplete around useFetch, they said.
-// Well, they were wrong, but I wish they were right.
-
 import type { AsyncData, UseFetchOptions, FetchResult } from "nuxt/app";
 import type { FetchError } from "ofetch";
 import type {
