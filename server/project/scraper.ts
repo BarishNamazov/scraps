@@ -23,9 +23,7 @@ function findNodesContainingText(document: Document, text: string): Node[] {
   while (walker.nextNode()) {
     const current = walker.currentNode.textContent;
     if (!current || skip.has(walker.currentNode)) continue;
-    if (current.includes("stability")) {
-      console.log("Found stability", current);
-    }
+
     // ignore whitespace or case
     if (equalsLax(current, text)) {
       nodes.push(walker.currentNode);
@@ -110,10 +108,8 @@ function findStructurallySimilarNodes(target: Node): Array<Node[]> {
 export function searchSource(src: string, text: string): string[][] {
   const dom = new JSDOM(src);
   const document = dom.window.document;
-  console.log("Searching for", text);
   const nodes = findNodesContainingText(document, text);
 
-  console.log("Found nodes", nodes);
   const similarNodes = nodes.flatMap(findStructurallySimilarNodes);
   const process = (s: string) => {
     return s.replace(/\s+/g, " ").trim();
