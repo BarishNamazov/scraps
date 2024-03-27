@@ -20,10 +20,6 @@ interface UseFetchyOptions<
   suppress?: boolean;
 }
 
-export type _Transform<Input = any, Output = any> = (
-  input: Input
-) => Output | Promise<Output>;
-
 export type PickFrom<T, K extends Array<string>> = T extends Array<any>
   ? T
   : T extends Record<string, any>
