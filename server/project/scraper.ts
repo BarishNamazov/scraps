@@ -44,9 +44,8 @@ function findStructurallySimilarNodes(target: Node): Array<Node[]> {
 
   const path: { index: number; name: string }[] = [];
 
-  while (true) {
+  while (current.parentNode) {
     const parent = current.parentNode;
-    if (!parent) break;
     const siblings = Array.from(parent.childNodes);
     const index = siblings.indexOf(current as ChildNode);
     const name = current.nodeName;
@@ -118,3 +117,16 @@ export function searchSource(src: string, text: string): string[][] {
     nodes.map((node) => process(node.textContent!)).filter(Boolean)
   );
 }
+
+/*
+
+let path = [];
+let current = temp0;
+while(current){
+  let classes = Array.from(current.classList).join(".");
+  if (classes) classes = "." + classes;
+    path.push(current.tagName + classes).
+  current = current.parentNode;
+} 
+
+*/
