@@ -91,6 +91,7 @@ export const getSearchResults = async (project: string, text: string) => {
 
   const projectDir = path.join(projectsDir, project);
   const sandboxDir = path.join(projectDir, "sandbox");
+  const cssPathsDir = path.join(projectDir, "cssPaths");
 
   const { files } = await readdir(sandboxDir, { recursive: false });
 
@@ -98,7 +99,11 @@ export const getSearchResults = async (project: string, text: string) => {
   for (const file of files) {
     const filePath = path.join(sandboxDir, file);
     const src = await fs.promises.readFile(filePath, "utf-8");
-    results.push(...searchSource(src, text));
+    const searchSourceOutput = searchSource(src, text);
+    const cssPathsFilePath = path.join(cssPathsDir, urlToFileName(text)+".txt");
+    const cssPathsData = searchSourceOutput.CSSPaths.map(row => row.join(' ')).join('\n');
+    await fs.promises.writeFile(cssPathsFilePath, cssPathsData);
+    results.push(...searchSourceOutput.SimilarNodes);
   }
 
   return results;

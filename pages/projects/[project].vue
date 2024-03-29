@@ -27,6 +27,7 @@ const searchHandler = async () => {
     body: { term: term.value },
     suppress: false,
   });
+  await getFiles();
   searchResults.value = ret.data.value;
   term.value = "";
 };

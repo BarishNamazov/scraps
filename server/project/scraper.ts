@@ -23,7 +23,11 @@ function findNodesContainingText(document: Document, text: string): Node[] {
   while (walker.nextNode()) {
     const current = walker.currentNode.textContent;
     if (!current || skip.has(walker.currentNode)) continue;
-
+    const parent = walker.currentNode.parentNode;
+    if (parent && skip.has(parent)) {
+      skip.add(walker.currentNode);
+      continue;
+    }
     // ignore whitespace or case
     if (equalsLax(current, text)) {
       nodes.push(walker.currentNode);
@@ -104,29 +108,56 @@ function findStructurallySimilarNodes(target: Node): Array<Node[]> {
   return similarities;
 }
 
-export function searchSource(src: string, text: string): string[][] {
+function getCSSPath(target: Node): Array<string> {
+  let path: Array<string> = [];
+  let current = target;
+
+  while (current) {
+    let currentNode = current.nodeName.toLowerCase();
+    if (current.nodeType == 1) {
+      const currentElement = current as Element;
+      let id = currentElement.id;
+      if (id) {
+        currentNode += "#"+id;
+      }
+
+      let classes = Array.from(currentElement.classList).join(".");
+      if (classes) {
+        currentNode += "." + classes;
+      }
+    } 
+
+    path.unshift(currentNode);
+    
+    if (current.parentNode) {
+      current = current.parentNode;
+    } else {
+      break;
+    }
+  }
+  return path;
+}
+
+type SearchResult = { SimilarNodes: Array<Array<string>>, CSSPaths: Array<Array<string>> };
+export function searchSource(src: string, text: string): SearchResult {
   const dom = new JSDOM(src);
   const document = dom.window.document;
   const nodes = findNodesContainingText(document, text);
+  
+  const cssPaths: Array<Array<string>> = [];
+  nodes.forEach(node => {
+    const cssPath = getCSSPath(node);
+    cssPaths.push(cssPath);
+  });
 
   const similarNodes = nodes.flatMap(findStructurallySimilarNodes);
   const process = (s: string) => {
     return s.replace(/\s+/g, " ").trim();
   };
-  return similarNodes.map((nodes) =>
-    nodes.map((node) => process(node.textContent!)).filter(Boolean)
-  );
+  return { 
+    SimilarNodes: similarNodes.map((nodes) =>
+                    nodes.map((node) => process(node.textContent!)).filter(Boolean)
+                  ), 
+    CSSPaths: cssPaths
+  };
 }
-
-/*
-
-let path = [];
-let current = temp0;
-while(current){
-  let classes = Array.from(current.classList).join(".");
-  if (classes) classes = "." + classes;
-    path.push(current.tagName + classes).
-  current = current.parentNode;
-} 
-
-*/
