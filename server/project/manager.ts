@@ -4,7 +4,7 @@ import { exec, execSync, spawn, ChildProcess } from "child_process";
 import readdir from "~/server/util/readdir";
 import { fileURLToPath } from "url";
 import { getPageSource, urlToFileName } from "~/utils";
-import { searchSource } from "./scraper";
+import { searchSource, getNodesWithSimilarCSSPath } from "./scraper";
 
 const projectsDir = process.env.PROJECTS_DIRECTORY as string;
 // const;
@@ -91,20 +91,63 @@ export const getSearchResults = async (project: string, text: string) => {
 
   const projectDir = path.join(projectsDir, project);
   const sandboxDir = path.join(projectDir, "sandbox");
-  const cssPathsDir = path.join(projectDir, "cssPaths");
 
   const { files } = await readdir(sandboxDir, { recursive: false });
 
-  const results = [];
+  let allCSSPaths: Set<string> = new Set();;
+  type stringToStringArray = {
+    [key: string]: string[];
+  }
+  type stringTo2DStringArray = {
+    [key: string]: string[][];
+  };
+  type similarNodesCollection = {
+    similarNodes?: string[][];
+    similarCSSPathNodes?: Array<stringToStringArray>
+  }
+  let results: {
+    [key: string]: similarNodesCollection
+  } = {};
+
+  for (const file of files) {
+    results[file] = {};
+    const filePath = path.join(sandboxDir, file);
+    const scrapsJSONPath = path.join(projectDir, "scraps.json");
+    const src = await fs.promises.readFile(filePath, "utf-8");
+    const searchSourceOutput = searchSource(src, text);
+
+    if (searchSourceOutput.SimilarNodes.length > 0) {
+      results[file]["similarNodes"] = searchSourceOutput.SimilarNodes;
+    }
+
+    if (searchSourceOutput.CSSPaths.length) {
+      let updatedData: stringTo2DStringArray = {};
+      try {
+        const existingJSONData = JSON.parse(await fs.promises.readFile(scrapsJSONPath, "utf-8"));
+        updatedData = { ...existingJSONData };
+      } catch {}
+      updatedData[text] = searchSourceOutput.CSSPaths;
+      searchSourceOutput.CSSPaths.forEach(cssPath => {
+        allCSSPaths.add(cssPath.join(" "));
+      })
+      await fs.promises.writeFile(scrapsJSONPath, JSON.stringify(updatedData));
+    }
+  }
+
   for (const file of files) {
     const filePath = path.join(sandboxDir, file);
     const src = await fs.promises.readFile(filePath, "utf-8");
-    const searchSourceOutput = searchSource(src, text);
-    const cssPathsFilePath = path.join(cssPathsDir, urlToFileName(text)+".txt");
-    const cssPathsData = searchSourceOutput.CSSPaths.map(row => row.join(' ')).join('\n');
-    await fs.promises.writeFile(cssPathsFilePath, cssPathsData);
-    results.push(...searchSourceOutput.SimilarNodes);
-  }
+    const nodesWithSimilarCSSPath: Array<stringToStringArray> = [];
+    for (const cssPath of allCSSPaths) {
+      const nodesWithSimilarPathOutput = getNodesWithSimilarCSSPath(src, cssPath);
+      if (Object.keys(nodesWithSimilarPathOutput).length) {
+        nodesWithSimilarCSSPath.push(nodesWithSimilarPathOutput);
+      }
+    }
 
+    if (nodesWithSimilarCSSPath.length) {
+      results[file]["similarCSSPathNodes"] = nodesWithSimilarCSSPath;
+    }
+  }
   return results;
 };

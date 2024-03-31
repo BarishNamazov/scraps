@@ -8,7 +8,7 @@ const isDirectory = (file: string) => {
 };
 
 const getClass = (file: string) => {
-  if (isDirectory(file) || ["exports", "sandbox", "cssPaths"].includes(file)) {
+  if (isDirectory(file) || ["exports", "sandbox"].includes(file)) {
     return "directory";
   }
   if (file.endsWith(".json") || file === ".gitignore") {

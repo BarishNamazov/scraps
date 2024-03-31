@@ -20,17 +20,30 @@ const scrapeHandler = async () => {
 };
 
 const term = ref("");
-let searchResults = ref<string[][]>([]);
+const lastFilename = ref("");
+type stringToStringArray = {
+  [key: string]: string[];
+}
+type StringDictionary = {
+  similarNodes?: string[][];
+  similarCSSPathNodes?: Array<stringToStringArray>
+}
+let searchResults = ref<StringDictionary>({});
+
 const searchHandler = async () => {
   const ret = await useFetchy(`/api/projects/${project}/search`, {
     method: "POST",
     body: { term: term.value },
     suppress: false,
   });
-  await getFiles();
   searchResults.value = ret.data.value;
+  lastFilename.value = Object.keys(searchResults.value)[Object.keys(searchResults.value).length - 1];
   term.value = "";
 };
+
+function isEmptyObject(obj: any) {
+  return typeof obj === 'object' && Object.keys(obj).length === 0;
+}
 </script>
 
 <template>
@@ -58,13 +71,30 @@ const searchHandler = async () => {
       </FloatLabel>
       <Button type="submit">Search</Button>
     </form>
-    <ul>
-      <li v-for="(list, i) in searchResults" :key="i" class="result">
-        <ul>
-          <li v-for="(item, j) in list" :key="j">{{ item }}</li>
-        </ul>
-      </li>
-    </ul>
+    <br>
+    <div v-for="(nodes, filename) in searchResults" :key="filename">
+      <b>{{ filename }}</b>
+      <p v-if="isEmptyObject(nodes)">No nodes found.</p>
+      <ul v-for="(lists, similarNodeOrCSSPath) in nodes" :key="similarNodeOrCSSPath">
+        {{ similarNodeOrCSSPath }}:
+        <li v-for="(list, j) in lists" :key="j">
+          <ul>
+            <li v-for="(item, k) in list" :key="k">
+              <div v-if="String(similarNodeOrCSSPath) === 'similarCSSPathNodes'"> 
+                {{ k }}
+                <ul>
+                  <li v-for="(text, m) in item" :key="m"> {{ text }}</li>
+                </ul>
+              </div>
+              <div v-else>
+                {{ item }}
+              </div>
+            </li>
+          </ul>
+        </li>
+      </ul>
+      <hr v-if="filename !== lastFilename">
+    </div>
   </section>
 </template>
 
