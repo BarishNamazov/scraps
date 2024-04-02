@@ -115,8 +115,8 @@ function findStructurallySimilarNodes(target: Node): Array<Node[]> {
 function escapePseudoClasses(classList: DOMTokenList): Array<string> {
   const escapedClasses: Array<string> = [];
 
-  classList.forEach(className => {
-    escapedClasses.push(className.replace(/:/g, '\\:'));
+  classList.forEach((className) => {
+    escapedClasses.push(className.replace(/:/g, "\\:"));
   });
 
   return escapedClasses;
@@ -132,18 +132,20 @@ function getCSSPath(target: Node): Array<string> {
       const currentElement = current as Element;
       let id = currentElement.id;
       if (id) {
-        currentNode += "#"+id;
+        currentNode += "#" + id;
       }
 
-      let classes = Array.from(escapePseudoClasses(currentElement.classList)).join(".");
+      let classes = Array.from(
+        escapePseudoClasses(currentElement.classList)
+      ).join(".");
       if (classes) {
         currentNode += "." + classes;
       }
-    } 
+    }
 
     path.unshift(currentNode);
-    
-    if (current.parentNode && (current.nodeName.toLowerCase() !== "html")) {
+
+    if (current.parentNode && current.nodeName.toLowerCase() !== "html") {
       current = current.parentNode;
     } else {
       break;
@@ -152,17 +154,26 @@ function getCSSPath(target: Node): Array<string> {
   return path;
 }
 
-export function getNodesWithSimilarCSSPath(src: string, fullCssPath: string): { [key: string]: Array<string> } {
+export function getNodesWithSimilarCSSPath(
+  src: string,
+  fullCssPath: string
+): { [key: string]: Array<string> } {
   const cssPath = fullCssPath.split(" ");
   // remove id from last element in CSS path before finding nodes with similar CSS path
-  cssPath[cssPath.length - 1] = cssPath[cssPath.length - 1].replace(/#[^.]*\./, '.');
-  const cssPathString = cssPath.join(" ").replace(/html\.[^\s]+/, 'html').replace(/body\.[^\s]+/, 'body');
+  cssPath[cssPath.length - 1] = cssPath[cssPath.length - 1].replace(
+    /#[^.]*\./,
+    "."
+  );
+  const cssPathString = cssPath
+    .join(" ")
+    .replace(/html\.[^\s]+/, "html")
+    .replace(/body\.[^\s]+/, "body");
 
   const dom = new JSDOM(src);
   const document = dom.window.document;
   const elementsWithSimilarCSSPath = document.querySelectorAll(cssPathString);
-  const nodesWithSimilarCSSPath: Array<string> = []
-  elementsWithSimilarCSSPath.forEach(element => {
+  const nodesWithSimilarCSSPath: Array<string> = [];
+  elementsWithSimilarCSSPath.forEach((element) => {
     const elemText = process(element.textContent!);
     if (elemText) {
       nodesWithSimilarCSSPath.push(elemText);
@@ -171,26 +182,29 @@ export function getNodesWithSimilarCSSPath(src: string, fullCssPath: string): { 
   const output: { [key: string]: Array<string> } = {};
   if (nodesWithSimilarCSSPath.length) {
     output[cssPath[cssPath.length - 1]] = nodesWithSimilarCSSPath;
-  } 
-  return  output;
+  }
+  return output;
 }
 
-type SearchResult = { SimilarNodes: Array<Array<string>>, CSSPaths: Array<Array<string>>};
+type SearchResult = {
+  similarNodes: Array<Array<string>>;
+  cssPaths: Array<Array<string>>;
+};
 export function searchSource(src: string, text: string): SearchResult {
   const dom = new JSDOM(src);
   const document = dom.window.document;
   const nodes = findNodesContainingText(document, text);
   const similarNodes = nodes.flatMap(findStructurallySimilarNodes);
   const cssPaths: Array<Array<string>> = [];
-  nodes.forEach(node => {
+  nodes.forEach((node) => {
     const cssPath = getCSSPath(node);
     cssPaths.push(cssPath);
   });
 
-  return { 
-    SimilarNodes: similarNodes.map((nodes) =>
-                    nodes.map((node) => process(node.textContent!)).filter(Boolean)
-                  ), 
-    CSSPaths: cssPaths
+  return {
+    similarNodes: similarNodes.map((nodes) =>
+      nodes.map((node) => process(node.textContent!)).filter(Boolean)
+    ),
+    cssPaths: cssPaths,
   };
 }

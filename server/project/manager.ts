@@ -94,19 +94,19 @@ export const getSearchResults = async (project: string, text: string) => {
 
   const { files } = await readdir(sandboxDir, { recursive: false });
 
-  let allCSSPaths: Set<string> = new Set();;
+  let allCSSPaths: Set<string> = new Set();
   type stringToStringArray = {
     [key: string]: string[];
-  }
+  };
   type stringTo2DStringArray = {
     [key: string]: string[][];
   };
   type similarNodesCollection = {
     similarNodes?: string[][];
-    similarCSSPathNodes?: Array<stringToStringArray>
-  }
+    similarCSSPathNodes?: Array<stringToStringArray>;
+  };
   let results: {
-    [key: string]: similarNodesCollection
+    [key: string]: similarNodesCollection;
   } = {};
 
   for (const file of files) {
@@ -116,20 +116,22 @@ export const getSearchResults = async (project: string, text: string) => {
     const src = await fs.promises.readFile(filePath, "utf-8");
     const searchSourceOutput = searchSource(src, text);
 
-    if (searchSourceOutput.SimilarNodes.length > 0) {
-      results[file]["similarNodes"] = searchSourceOutput.SimilarNodes;
+    if (searchSourceOutput.similarNodes.length > 0) {
+      results[file]["similarNodes"] = searchSourceOutput.similarNodes;
     }
 
-    if (searchSourceOutput.CSSPaths.length) {
+    if (searchSourceOutput.cssPaths.length) {
       let updatedData: stringTo2DStringArray = {};
       try {
-        const existingJSONData = JSON.parse(await fs.promises.readFile(scrapsJSONPath, "utf-8"));
+        const existingJSONData = JSON.parse(
+          await fs.promises.readFile(scrapsJSONPath, "utf-8")
+        );
         updatedData = { ...existingJSONData };
       } catch {}
-      updatedData[text] = searchSourceOutput.CSSPaths;
-      searchSourceOutput.CSSPaths.forEach(cssPath => {
+      updatedData[text] = searchSourceOutput.cssPaths;
+      searchSourceOutput.cssPaths.forEach((cssPath) => {
         allCSSPaths.add(cssPath.join(" "));
-      })
+      });
       await fs.promises.writeFile(scrapsJSONPath, JSON.stringify(updatedData));
     }
   }
@@ -139,7 +141,10 @@ export const getSearchResults = async (project: string, text: string) => {
     const src = await fs.promises.readFile(filePath, "utf-8");
     const nodesWithSimilarCSSPath: Array<stringToStringArray> = [];
     for (const cssPath of allCSSPaths) {
-      const nodesWithSimilarPathOutput = getNodesWithSimilarCSSPath(src, cssPath);
+      const nodesWithSimilarPathOutput = getNodesWithSimilarCSSPath(
+        src,
+        cssPath
+      );
       if (Object.keys(nodesWithSimilarPathOutput).length) {
         nodesWithSimilarCSSPath.push(nodesWithSimilarPathOutput);
       }

@@ -21,13 +21,11 @@ const scrapeHandler = async () => {
 
 const term = ref("");
 const lastFilename = ref("");
-type stringToStringArray = {
-  [key: string]: string[];
-}
+
 type StringDictionary = {
   similarNodes?: string[][];
-  similarCSSPathNodes?: Array<stringToStringArray>
-}
+  similarCSSPathNodes?: Array<Record<string, string[]>>;
+};
 let searchResults = ref<StringDictionary>({});
 
 const searchHandler = async () => {
@@ -37,12 +35,14 @@ const searchHandler = async () => {
     suppress: false,
   });
   searchResults.value = ret.data.value;
-  lastFilename.value = Object.keys(searchResults.value)[Object.keys(searchResults.value).length - 1];
+  lastFilename.value = Object.keys(searchResults.value)[
+    Object.keys(searchResults.value).length - 1
+  ];
   term.value = "";
 };
 
 function isEmptyObject(obj: any) {
-  return typeof obj === 'object' && Object.keys(obj).length === 0;
+  return typeof obj === "object" && Object.keys(obj).length === 0;
 }
 </script>
 
@@ -71,19 +71,26 @@ function isEmptyObject(obj: any) {
       </FloatLabel>
       <Button type="submit">Search</Button>
     </form>
-    <br>
+    <br />
     <div v-for="(nodes, filename) in searchResults" :key="filename">
       <b>{{ filename }}</b>
       <p v-if="isEmptyObject(nodes)">No nodes found.</p>
-      <ul v-for="(lists, similarNodeOrCSSPath) in nodes" :key="similarNodeOrCSSPath">
-        {{ similarNodeOrCSSPath }}:
+      <ul
+        v-for="(lists, similarNodeOrCSSPath) in nodes"
+        :key="similarNodeOrCSSPath"
+      >
+        {{
+          similarNodeOrCSSPath
+        }}:
         <li v-for="(list, j) in lists" :key="j">
           <ul>
             <li v-for="(item, k) in list" :key="k">
-              <div v-if="String(similarNodeOrCSSPath) === 'similarCSSPathNodes'"> 
+              <div
+                v-if="String(similarNodeOrCSSPath) === 'similarCSSPathNodes'"
+              >
                 {{ k }}
                 <ul>
-                  <li v-for="(text, m) in item" :key="m"> {{ text }}</li>
+                  <li v-for="(text, m) in item" :key="m">{{ text }}</li>
                 </ul>
               </div>
               <div v-else>
@@ -93,7 +100,7 @@ function isEmptyObject(obj: any) {
           </ul>
         </li>
       </ul>
-      <hr v-if="filename !== lastFilename">
+      <hr v-if="filename !== lastFilename" />
     </div>
   </section>
 </template>
