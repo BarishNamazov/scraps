@@ -18,29 +18,49 @@ function equalsLax(text: string, search: string): boolean {
 
 // See https://developer.mozilla.org/en-US/docs/Web/API/Document/createTreeWalker
 // Element and Text nodes.
-const SHOW_FLAGS = 0x1 | 0x4;
+const SHOW_ELEMENT_TEXT = 0x1 | 0x4;
+const SHOW_ELEMENT = 0x1;
 
-function findNodesContainingText(document: Document, text: string): Node[] {
-  const walker = document.createTreeWalker(document.body, SHOW_FLAGS);
-  const nodes: Node[] = [];
-  const skip = new Set<Node>([]); // to skip children of found nodes
-  while (walker.nextNode()) {
-    const current = walker.currentNode.textContent;
-    if (!current || skip.has(walker.currentNode)) continue;
-    const parent = walker.currentNode.parentNode;
-    if (parent && skip.has(parent)) {
-      skip.add(walker.currentNode);
-      continue;
+function findNodesContainingText(
+  document: Document,
+  text: string,
+  inner = true
+): Node[] {
+  const walker = document.createTreeWalker(document.body, SHOW_ELEMENT_TEXT);
+  const nodes: Set<Node> = new Set<Node>();
+  if (!inner) {
+    const skip = new Set<Node>([]); // to skip children of found nodes
+    while (walker.nextNode()) {
+      const current = walker.currentNode.textContent;
+      if (!current || skip.has(walker.currentNode)) continue;
+      const parent = walker.currentNode.parentNode;
+      if (parent && skip.has(parent)) {
+        skip.add(walker.currentNode);
+        continue;
+      }
+      // ignore whitespace or case
+      if (equalsLax(current, text)) {
+        nodes.add(walker.currentNode);
+        walker.currentNode.childNodes.forEach((node) => {
+          skip.add(node);
+        });
+      }
     }
-    // ignore whitespace or case
-    if (equalsLax(current, text)) {
-      nodes.push(walker.currentNode);
-      walker.currentNode.childNodes.forEach((node) => {
-        skip.add(node);
-      });
+  } else {
+    while (walker.nextNode()) {
+      const current = walker.currentNode.textContent;
+      if (!current) continue;
+      const parent = walker.currentNode.parentNode;
+      if (includesLax(current, text)) {
+        if (parent && nodes.has(parent)) {
+          nodes.delete(parent);
+        }
+        nodes.add(walker.currentNode);
+      }
     }
   }
-  return nodes;
+
+  return Array.from(nodes);
 }
 
 function findStructurallySimilarNodes(target: Node): Array<Node[]> {
@@ -64,12 +84,15 @@ function findStructurallySimilarNodes(target: Node): Array<Node[]> {
       hasNormalized = true;
     }
 
-    const similarNodes = [target];
+    const similarNodes: Node[] = [];
 
     // Now, for each child of this parent, follow the indices
     siblings.forEach((sibling, i) => {
       // Skip the current node
-      if (i === index) return;
+      if (i === index) {
+        similarNodes.push(target);
+        return;
+      }
 
       // Heuristic: If the sibling is not the same type as the current node, skip
       if (sibling.nodeName !== current.nodeName) return;
@@ -122,28 +145,27 @@ function escapePseudoClasses(classList: DOMTokenList): Array<string> {
   return escapedClasses;
 }
 
-function getCSSPath(target: Node): Array<string> {
+function getCSSPath(target: Node, includeIds = false): string {
   let path: Array<string> = [];
   let current = target;
 
   while (current) {
     let currentNode = current.nodeName.toLowerCase();
-    if (current.nodeType == 1) {
+    if (current.nodeType == SHOW_ELEMENT) {
       const currentElement = current as Element;
-      let id = currentElement.id;
-      if (id) {
+
+      const id = currentElement.id;
+      if (includeIds && id) {
         currentNode += "#" + id;
       }
 
-      let classes = Array.from(
-        escapePseudoClasses(currentElement.classList)
-      ).join(".");
+      const classes = escapePseudoClasses(currentElement.classList).join(".");
       if (classes) {
         currentNode += "." + classes;
       }
-    }
 
-    path.unshift(currentNode);
+      path.unshift(currentNode);
+    }
 
     if (current.parentNode && current.nodeName.toLowerCase() !== "html") {
       current = current.parentNode;
@@ -151,19 +173,16 @@ function getCSSPath(target: Node): Array<string> {
       break;
     }
   }
-  return path;
+
+  console.log(path);
+  return path.join(" ");
 }
 
 export function getNodesWithSimilarCSSPath(
   src: string,
   fullCssPath: string
-): { [key: string]: Array<string> } {
+): Array<Node> {
   const cssPath = fullCssPath.split(" ");
-  // remove id from last element in CSS path before finding nodes with similar CSS path
-  cssPath[cssPath.length - 1] = cssPath[cssPath.length - 1].replace(
-    /#[^.]*\./,
-    "."
-  );
   const cssPathString = cssPath
     .join(" ")
     .replace(/html\.[^\s]+/, "html")
@@ -171,40 +190,30 @@ export function getNodesWithSimilarCSSPath(
 
   const dom = new JSDOM(src);
   const document = dom.window.document;
-  const elementsWithSimilarCSSPath = document.querySelectorAll(cssPathString);
-  const nodesWithSimilarCSSPath: Array<string> = [];
-  elementsWithSimilarCSSPath.forEach((element) => {
-    const elemText = process(element.textContent!);
-    if (elemText) {
-      nodesWithSimilarCSSPath.push(elemText);
-    }
-  });
-  const output: { [key: string]: Array<string> } = {};
-  if (nodesWithSimilarCSSPath.length) {
-    output[cssPath[cssPath.length - 1]] = nodesWithSimilarCSSPath;
-  }
-  return output;
+  return Array.from(document.querySelectorAll(cssPathString));
 }
 
-type SearchResult = {
-  similarNodes: Array<Array<string>>;
-  cssPaths: Array<Array<string>>;
-};
-export function searchSource(src: string, text: string): SearchResult {
+export function searchSource(src: string, text: string) {
   const dom = new JSDOM(src);
   const document = dom.window.document;
   const nodes = findNodesContainingText(document, text);
-  const similarNodes = nodes.flatMap(findStructurallySimilarNodes);
-  const cssPaths: Array<Array<string>> = [];
-  nodes.forEach((node) => {
-    const cssPath = getCSSPath(node);
-    cssPaths.push(cssPath);
-  });
 
-  return {
-    similarNodes: similarNodes.map((nodes) =>
-      nodes.map((node) => process(node.textContent!)).filter(Boolean)
-    ),
-    cssPaths: cssPaths,
-  };
+  const results = [];
+
+  for (const node of nodes) {
+    const similarNodes = findStructurallySimilarNodes(node);
+    const cssPath = getCSSPath(node);
+    if (similarNodes.length) {
+      results.push({ similarNodes, cssPath });
+    }
+  }
+
+  return results;
+}
+
+export function searchCssPaths(src: string, text: string) {
+  const dom = new JSDOM(src);
+  const document = dom.window.document;
+  const nodes = findNodesContainingText(document, text);
+  return nodes.map((node) => getCSSPath(node));
 }
