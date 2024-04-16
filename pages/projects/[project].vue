@@ -8,13 +8,27 @@ const { data: files, refresh: getFiles } = await useFetchy(
   `/api/projects/${project}`
 );
 
-const url = ref("");
+const url = ref(""),
+  pattern = ref(""),
+  wait = ref(100),
+  depth = ref(10),
+  excludeCurrentUrl = ref(false);
+
+const errors = ref<string[]>([]);
 const scrapeHandler = async () => {
-  await useFetchy(`/api/projects/${project}/scrape`, {
+  errors.value = [];
+  const ret = await useFetchy(`/api/projects/${project}/scrape`, {
     method: "POST",
-    body: { url: url.value },
+    body: {
+      url: url.value,
+      pattern: pattern.value,
+      wait: wait.value,
+      depth: depth.value,
+      excludeCurrentUrl: excludeCurrentUrl.value,
+    },
     suppress: false,
   });
+  errors.value = ret.data.value.errors;
   await getFiles();
   url.value = "";
 };
@@ -45,13 +59,40 @@ const searchHandler = async () => {
 
   <section>
     <h2>Scrape a page</h2>
-    <form @submit.prevent="scrapeHandler">
+    <form @submit.prevent="scrapeHandler" class="scrape">
       <FloatLabel>
         <InputText id="url" type="url" v-model="url" required />
         <label for="url">URL</label>
       </FloatLabel>
+
+      <Panel toggleable :collapsed="true" header="Advanced Options">
+        <div class="panel">
+          <FloatLabel>
+            <InputText id="pattern" type="text" v-model="pattern" />
+            <label for="pattern">Pattern</label>
+          </FloatLabel>
+
+          <FloatLabel>
+            <InputNumber id="wait" type="text" v-model="wait" />
+            <label for="wait">Duration between scrapes (ms)</label>
+          </FloatLabel>
+
+          <FloatLabel>
+            <InputNumber id="depth" type="text" v-model="depth" />
+            <label for="depth">Maximum number of URLs to scrape</label>
+          </FloatLabel>
+
+          <label>
+            <Checkbox v-model="excludeCurrentUrl" :binary="true" />
+            Exclude the typed URL from the scrape results
+          </label>
+        </div>
+      </Panel>
       <Button type="submit">Scrape</Button>
     </form>
+    <p v-if="errors.length">
+      These links could not be downloaded: {{ errors.join(", ") }}
+    </p>
   </section>
 
   <section>
@@ -78,9 +119,18 @@ const searchHandler = async () => {
 <style scoped>
 form {
   display: flex;
+  flex-direction: column;
   gap: 1rem;
+  > * {
+    width: fit-content;
+  }
 }
 
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
 .result {
   margin-bottom: 1em;
 }

@@ -1,6 +1,5 @@
 import fs from "fs";
 import path from "path";
-import { exec, execSync, spawn, ChildProcess } from "child_process";
 import readdir from "~/server/util/readdir";
 import { fileURLToPath } from "url";
 import { getPageSource, urlToFileName } from "~/utils";
@@ -8,6 +7,7 @@ import {
   searchSource,
   getNodesWithSimilarCSSPath,
   searchCssPaths,
+  getAllLinks,
 } from "./scraper";
 
 const projectsDir = process.env.PROJECTS_DIRECTORY as string;
@@ -68,26 +68,66 @@ export const getProjectFiles = async (name: string) => {
   return files;
 };
 
-export const downloadUrl = async (project: string, url: string) => {
+export const downloadUrl = async (
+  project: string,
+  url: string,
+  options: {
+    followPattern?: string;
+    excludeCurrentUrl?: boolean;
+    wait: number;
+    maxDepth: number;
+  } = { maxDepth: 1, wait: 100 }
+) => {
   assertProject(project);
 
   const projectDir = path.join(projectsDir, project);
-  let src: string;
+  const followPattern = options?.followPattern;
+  const excludeCurrentUrl = options?.excludeCurrentUrl ?? false;
+  const wait = options?.wait;
+  const maxDepth = options?.maxDepth;
 
-  try {
-    src = await getPageSource(url);
-  } catch (error) {
-    throw createError({
-      message: "Failed to fetch URL.",
-      status: 401,
-    });
+  const queue = [url];
+  const writePromises = [];
+  const errors = [];
+  let depth = 0;
+
+  while (queue.length) {
+    const currentUrl = queue.shift() as string;
+
+    let src: string;
+
+    try {
+      src = await getPageSource(currentUrl);
+      if (wait) {
+        await new Promise((resolve) => setTimeout(resolve, wait));
+      }
+    } catch (error) {
+      errors.push(currentUrl);
+      continue;
+    }
+
+    // Find matching patterns in the source using regex and add them to the queue
+    if (followPattern) {
+      queue.push(...getAllLinks(src, currentUrl, followPattern));
+    }
+
+    if (excludeCurrentUrl && currentUrl === url) {
+      continue;
+    }
+
+    const file = urlToFileName(currentUrl) + ".html";
+    const filePath = path.join(projectDir, "sandbox", file);
+    writePromises.push(fs.promises.writeFile(filePath, src));
+
+    depth++;
+    if (depth >= maxDepth) {
+      break;
+    }
   }
 
-  const file = urlToFileName(url) + ".html";
-  const filePath = path.join(projectDir, "sandbox", file);
+  await Promise.all(writePromises);
 
-  await fs.promises.writeFile(filePath, src);
-  return { message: "URL scraped successfully." };
+  return { message: "URL scraped successfully.", errors };
 };
 
 export const getSearchResults = async (project: string, text: string) => {

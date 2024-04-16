@@ -174,7 +174,6 @@ function getCSSPath(target: Node, includeIds = false): string {
     }
   }
 
-  console.log(path);
   return path.join(" ");
 }
 
@@ -216,4 +215,18 @@ export function searchCssPaths(src: string, text: string) {
   const document = dom.window.document;
   const nodes = findNodesContainingText(document, text);
   return nodes.map((node) => getCSSPath(node));
+}
+
+export function getAllLinks(src: string, baseURI: string, pattern: string) {
+  const dom = new JSDOM(src);
+  const document = dom.window.document;
+  const links = document.querySelectorAll("a");
+  const matches = [];
+  for (const link of links) {
+    const fullUrl = new URL(link.href, baseURI).href;
+    if (fullUrl.match(new RegExp(pattern))) {
+      matches.push(fullUrl);
+    }
+  }
+  return matches;
 }
