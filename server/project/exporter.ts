@@ -5,7 +5,7 @@ import readdir from "../util/readdir";
 import { collectUsingCssPath } from "./scraper";
 import { stringify, parse } from "csv/sync";
 
-type Export = Record<string, string[]>;
+type Export = Record<string, string>[];
 
 export const getExport = async (project: string, name = "export.csv") => {
   assertProject(project);
@@ -13,7 +13,7 @@ export const getExport = async (project: string, name = "export.csv") => {
   const exportDir = path.join(projectDir, "exports");
   const exportPath = path.join(exportDir, name);
 
-  let exported: Export = {};
+  let exported: Export = [];
   if (!fs.existsSync(exportPath)) {
     fs.writeFileSync(exportPath, "");
   } else {
@@ -25,7 +25,7 @@ export const getExport = async (project: string, name = "export.csv") => {
 
 export const writeExport = async (
   project: string,
-  data: Record<string, string[]>,
+  data: Export,
   name = "export.csv"
 ) => {
   assertProject(project);
@@ -33,11 +33,7 @@ export const writeExport = async (
   const exportDir = path.join(projectDir, "exports");
   const exportPath = path.join(exportDir, name);
 
-  const records = Object.entries(data).map(([name, values]) => ({
-    name,
-    values,
-  }));
-  const stringified = stringify(records, { header: true });
+  const stringified = stringify(data, { header: true });
 
   fs.writeFileSync(exportPath, stringified);
 };
@@ -48,12 +44,6 @@ export const createProperty = async (
   cssPath: string
 ) => {
   assertProject(project);
-  if (!name.match(/^[\w,\s-]+\.[A-Za-z]{3}$/)) {
-    throw createError({
-      message: "Invalid property name.",
-      status: 401,
-    });
-  }
 
   const projectDir = path.join(projectsDir, project);
   const sandboxDir = path.join(projectDir, "sandbox");
@@ -65,12 +55,17 @@ export const createProperty = async (
     )
   );
 
-  const values = await collectUsingCssPath(srcs, cssPath);
+  const values = collectUsingCssPath(srcs, cssPath);
 
-  const exported = await getExport(project);
-  exported[name] = values;
+  let exported = await getExport(project);
+  if (exported.length === 0) {
+    exported = values.map((value) => ({ [name]: value }));
+  } else {
+    exported.forEach((obj, i) => {
+      obj[name] = values[i];
+    });
+  }
 
-  const records = values.map((value) => ({ name: value }));
   await writeExport(project, exported);
 
   return { message: "Property created successfully." };

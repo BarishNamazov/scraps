@@ -183,7 +183,7 @@ export function getNodesWithSimilarCSSPath(
 ): Array<Node> {
   const cssPath = fullCssPath.split(" ");
   const cssPathString = cssPath
-    .join(" ")
+    .join(">")
     .replace(/html\.[^\s]+/, "html")
     .replace(/body\.[^\s]+/, "body");
 

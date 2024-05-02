@@ -3,12 +3,7 @@ import path from "path";
 import readdir from "~/server/util/readdir";
 import { fileURLToPath } from "url";
 import { getPageSource, urlToFileName } from "~/utils";
-import {
-  getNodesWithSimilarCSSPath,
-  searchCssPaths,
-  getAllLinks,
-  collectUsingCssPath,
-} from "./scraper";
+import { searchCssPaths, getAllLinks, collectUsingCssPath } from "./scraper";
 
 export const projectsDir = process.env.PROJECTS_DIRECTORY as string;
 
@@ -97,8 +92,10 @@ export const downloadUrl = async (
     const page_ranges = pages.split(",");
     for (const page_range of page_ranges) {
       const start = Number(page_range.split("-")[0]);
-      const end = Number(page_range.split("-")[page_range.split("-").length-1]);
-      for (let i = start; i<=end; i++) {
+      const end = Number(
+        page_range.split("-")[page_range.split("-").length - 1]
+      );
+      for (let i = start; i <= end; i++) {
         queue.push(url + i.toString());
       }
     }
@@ -125,8 +122,11 @@ export const downloadUrl = async (
       queue.push(...getAllLinks(src, currentUrl, followPattern));
     }
 
-    if ((excludeCurrentUrl && (currentUrl === url || (pages && currentUrl.startsWith(url)))) 
-      || visited.has(currentUrl)) {
+    if (
+      (excludeCurrentUrl &&
+        (currentUrl === url || (pages && currentUrl.startsWith(url)))) ||
+      visited.has(currentUrl)
+    ) {
       continue;
     } else {
       depth++;

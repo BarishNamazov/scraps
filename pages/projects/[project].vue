@@ -53,6 +53,16 @@ const searchHandler = async () => {
   results.value = search.data.value;
   term.value = "";
 };
+
+const property = ref("");
+const createPropertyHandler = async () => {
+  await useFetchy(`/api/projects/${project}/property`, {
+    method: "POST",
+    body: { cssPath: results.value[0].cssPath, name: property.value },
+  });
+  await getFiles();
+  property.value = "";
+};
 </script>
 
 <template>
@@ -74,9 +84,14 @@ const searchHandler = async () => {
             <InputText id="pattern" type="text" v-model="pattern" />
             <label for="pattern">Pattern</label>
           </FloatLabel>
-        
+
           <FloatLabel>
-            <InputText id="pages" type="text" v-model="pages" placeholder="e.g. 1-5, 8" />
+            <InputText
+              id="pages"
+              type="text"
+              v-model="pages"
+              placeholder="e.g. 1-5, 8"
+            />
             <label for="pages">Pages</label>
           </FloatLabel>
 
@@ -113,14 +128,26 @@ const searchHandler = async () => {
       <Button type="submit">Search</Button>
     </form>
 
-    <div v-if="results" v-for="thing in results" :key="thing.cssPath">
-      <h3>{{ thing.cssPath }}</h3>
-      <ol>
-        <li v-for="node in thing.nodes" :key="node">
-          {{ node }}
-        </li>
-      </ol>
-    </div>
+    <Accordion v-if="results" :active-index="0">
+      <AccordionTab
+        v-for="thing in results"
+        :key="thing.cssPath"
+        :header="thing.cssPath"
+      >
+        <form @submit.prevent="createPropertyHandler">
+          <FloatLabel>
+            <InputText id="property" v-model="property" required />
+            <label for="property">Make a property</label>
+          </FloatLabel>
+          <Button type="submit">Create Property</Button>
+        </form>
+        <ol>
+          <li v-for="node in thing.nodes" :key="node">
+            {{ node }}
+          </li>
+        </ol>
+      </AccordionTab>
+    </Accordion>
   </section>
 </template>
 
