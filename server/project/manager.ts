@@ -4,7 +4,6 @@ import readdir from "~/server/util/readdir";
 import { fileURLToPath } from "url";
 import { getPageSource, urlToFileName } from "~/utils";
 import {
-  searchSource,
   getNodesWithSimilarCSSPath,
   searchCssPaths,
   getAllLinks,
@@ -73,6 +72,7 @@ export const downloadUrl = async (
   url: string,
   options: {
     followPattern?: string;
+    pages?: string;
     excludeCurrentUrl?: boolean;
     wait: number;
     maxDepth: number;
@@ -82,18 +82,32 @@ export const downloadUrl = async (
 
   const projectDir = path.join(projectsDir, project);
   const followPattern = options?.followPattern;
+  const pages = options?.pages;
   const excludeCurrentUrl = options?.excludeCurrentUrl ?? false;
   const wait = options?.wait;
   const maxDepth = options?.maxDepth;
 
-  const queue = [url];
+  const queue = [];
+  const visited = new Set();
   const writePromises = [];
   const errors = [];
   let depth = 0;
 
+  if (pages) {
+    const page_ranges = pages.split(",");
+    for (const page_range of page_ranges) {
+      const start = Number(page_range.split("-")[0]);
+      const end = Number(page_range.split("-")[page_range.split("-").length-1]);
+      for (let i = start; i<=end; i++) {
+        queue.push(url + i.toString());
+      }
+    }
+  } else {
+    queue.push(url);
+  }
+
   while (queue.length) {
     const currentUrl = queue.shift() as string;
-
     let src: string;
 
     try {
@@ -111,15 +125,18 @@ export const downloadUrl = async (
       queue.push(...getAllLinks(src, currentUrl, followPattern));
     }
 
-    if (excludeCurrentUrl && currentUrl === url) {
+    if ((excludeCurrentUrl && (currentUrl === url || (pages && currentUrl.startsWith(url)))) 
+      || visited.has(currentUrl)) {
       continue;
+    } else {
+      depth++;
+      visited.add(currentUrl);
     }
 
     const file = urlToFileName(currentUrl) + ".html";
     const filePath = path.join(projectDir, "sandbox", file);
     writePromises.push(fs.promises.writeFile(filePath, src));
 
-    depth++;
     if (depth >= maxDepth) {
       break;
     }
