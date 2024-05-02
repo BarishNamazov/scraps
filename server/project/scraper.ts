@@ -230,3 +230,15 @@ export function getAllLinks(src: string, baseURI: string, pattern: string) {
   }
   return matches;
 }
+
+export const collectUsingCssPath = (srcs: string[], cssPath: string) => {
+  const nodes = [];
+  for (const src of srcs) {
+    const similarNodes = getNodesWithSimilarCSSPath(src, cssPath).map(
+      (node) => node.textContent ?? ""
+    );
+    nodes.push(...similarNodes);
+  }
+
+  return nodes;
+};

@@ -4,14 +4,13 @@ import readdir from "~/server/util/readdir";
 import { fileURLToPath } from "url";
 import { getPageSource, urlToFileName } from "~/utils";
 import {
-  searchSource,
   getNodesWithSimilarCSSPath,
   searchCssPaths,
   getAllLinks,
+  collectUsingCssPath,
 } from "./scraper";
 
-const projectsDir = process.env.PROJECTS_DIRECTORY as string;
-// const;
+export const projectsDir = process.env.PROJECTS_DIRECTORY as string;
 
 if (!fs.existsSync(projectsDir)) {
   throw new Error(`Projects directory does not exist!`);
@@ -49,7 +48,7 @@ export const createProject = async (name: string) => {
   return { message: "Project created successfully." };
 };
 
-const assertProject = (name: string) => {
+export const assertProject = (name: string) => {
   const projectDir = path.join(projectsDir, name);
   if (!fs.existsSync(projectDir)) {
     throw createError({
@@ -145,18 +144,8 @@ export const getSearchResults = async (project: string, text: string) => {
 
   const cssPaths = new Set(srcs.flatMap((src) => searchCssPaths(src, text)));
 
-  const results = [];
-
-  for (const cssPath of cssPaths) {
-    const nodes = [];
-    for (const src of srcs) {
-      const similarNodes = getNodesWithSimilarCSSPath(src, cssPath).map(
-        (node) => node.textContent ?? ""
-      );
-      nodes.push(...similarNodes);
-    }
-    results.push({ nodes, cssPath });
-  }
-
-  return results;
+  return Array.from(cssPaths).map((cssPath) => ({
+    cssPath,
+    nodes: collectUsingCssPath(srcs, cssPath),
+  }));
 };
