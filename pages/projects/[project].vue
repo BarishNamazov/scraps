@@ -13,7 +13,6 @@ const url = ref(""),
   wait = ref(100),
   depth = ref(10),
   excludeCurrentUrl = ref(false),
-  paginationBaseUrl = ref(""),
   pages = ref("");
 
 const errors = ref<string[]>([]);
@@ -24,6 +23,7 @@ const scrapeHandler = async () => {
     body: {
       url: url.value,
       pattern: pattern.value,
+      pages: pages.value,
       wait: wait.value,
       depth: depth.value,
       excludeCurrentUrl: excludeCurrentUrl.value,
@@ -33,6 +33,7 @@ const scrapeHandler = async () => {
   errors.value = ret.data.value.errors;
   await getFiles();
   url.value = "";
+  pages.value = "";
 };
 
 const term = ref("");
@@ -52,26 +53,6 @@ const searchHandler = async () => {
   results.value = search.data.value;
   term.value = "";
 };
-
-const paginationHandler = async () => {
-  const page_ranges = pages.value.split(",");
-  for (const page_range of page_ranges) {
-    const start = Number(page_range.split("-")[0]);
-    const end = Number(page_range.split("-")[page_range.split("-").length-1]);
-    for (let i = start; i<=end; i++) {
-      await useFetchy(`/api/projects/${project}/scrape`, {
-        method: "POST",
-        body: {
-          url: paginationBaseUrl.value + i.toString(),
-        },
-        suppress: false,
-      });
-    }
-  }
-  await getFiles();
-  paginationBaseUrl.value = "";
-  pages.value = "";
-}
 </script>
 
 <template>
@@ -92,6 +73,11 @@ const paginationHandler = async () => {
           <FloatLabel>
             <InputText id="pattern" type="text" v-model="pattern" />
             <label for="pattern">Pattern</label>
+          </FloatLabel>
+        
+          <FloatLabel>
+            <InputText id="pages" type="text" v-model="pages" placeholder="e.g. 1-5, 8" />
+            <label for="pages">Pages</label>
           </FloatLabel>
 
           <FloatLabel>
@@ -115,23 +101,6 @@ const paginationHandler = async () => {
     <p v-if="errors.length">
       These links could not be downloaded: {{ errors.join(", ") }}
     </p>
-  </section>
-
-  <section>
-    <h2>Pagination</h2>
-    <form @submit.prevent="paginationHandler">
-      <div class="panel">
-        <FloatLabel>
-          <InputText id="pagination_pattern" type="url" v-model="paginationBaseUrl" placeholder="https://thetech.com/news/page/" required />
-          <label for="pagination_pattern">Base URL</label>
-        </FloatLabel>
-        <FloatLabel>
-          <InputText id="pages" type="text" v-model="pages" placeholder="e.g. 1-5, 8" />
-          <label for="pages">Pages</label>
-        </FloatLabel>
-      </div>
-      <Button type="submit">Scrape Pages</Button>
-    </form>
   </section>
 
   <section>
@@ -173,9 +142,5 @@ form {
 }
 .result {
   margin-bottom: 1em;
-}
-
-#pagination_pattern, #pages {
-  min-width: 275px;
 }
 </style>
