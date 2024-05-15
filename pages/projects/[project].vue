@@ -55,10 +55,10 @@ const searchHandler = async () => {
 };
 
 const property = ref("");
-const createPropertyHandler = async () => {
+const createPropertyHandler = async (cssPathString: string) => {
   await useFetchy(`/api/projects/${project}/property`, {
     method: "POST",
-    body: { cssPath: results.value[0].cssPath, name: property.value },
+    body: { cssPath: cssPathString, name: property.value },
   });
   await getFiles();
   property.value = "";
@@ -134,7 +134,7 @@ const createPropertyHandler = async () => {
         :key="thing.cssPath"
         :header="thing.cssPath"
       >
-        <form @submit.prevent="createPropertyHandler">
+        <form @submit.prevent="createPropertyHandler(thing.cssPath)">
           <FloatLabel>
             <InputText id="property" v-model="property" required />
             <label for="property">Make a property</label>

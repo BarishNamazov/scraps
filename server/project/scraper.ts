@@ -139,7 +139,7 @@ function escapePseudoClasses(classList: DOMTokenList): Array<string> {
   const escapedClasses: Array<string> = [];
 
   classList.forEach((className) => {
-    escapedClasses.push(className.replace(/:/g, "\\:"));
+    escapedClasses.push(className.replace(/:/g, "\\:").replace(/\[/g, "\\[").replace(/\]/g, "\\]").replace(/!/g, "\\!"));
   });
 
   return escapedClasses;
@@ -183,7 +183,7 @@ export function getNodesWithSimilarCSSPath(
 ): Array<Node> {
   const cssPath = fullCssPath.split(" ");
   const cssPathString = cssPath
-    .join(">")
+    .join(" ")
     .replace(/html\.[^\s]+/, "html")
     .replace(/body\.[^\s]+/, "body");
 
@@ -235,10 +235,27 @@ export const collectUsingCssPath = (srcs: string[], cssPath: string) => {
   const nodes = [];
   for (const src of srcs) {
     const similarNodes = getNodesWithSimilarCSSPath(src, cssPath).map(
-      (node) => node.textContent ?? ""
+      (node) => {
+        if (node.nodeName=== 'TR') {
+          const row = node as Element;
+          const cells = row.querySelectorAll('th, td');
+
+          function extractCellTextContent(cells: NodeListOf<Element>) {
+            const cellContents: string[] = [];
+            cells.forEach(function(cell: Node) {
+              if (cell.textContent) {
+                cellContents.push(cell.textContent.trim());
+              }
+            });
+            return cellContents.join(',');
+          }
+          return extractCellTextContent(cells);
+        } else {
+          return node.textContent ?? ""
+        }
+      }
     );
     nodes.push(...similarNodes);
   }
-
   return nodes;
 };
