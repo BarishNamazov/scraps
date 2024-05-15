@@ -27,6 +27,9 @@ export default async function readdir(
     const files = await fs.promises.readdir(dir, { withFileTypes: true });
     for (const file of files) {
       const fullPath = path.join(dir, file.name);
+      if (file.name === ".gitkeep") {
+        continue;
+      }
       if (options?.exclude?.includes(file.name)) {
         excluded.push(fullPath);
         continue;
